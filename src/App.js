@@ -1,19 +1,40 @@
 import React, { Component } from "react";
-import { Form, Icon, Input, Button, Radio, Select } from "antd";
+import { Form, Icon, Input, Button, Radio, Select, List } from "antd";
+import Axios from "axios";
 
 function hasErrors(fieldsError) {
   return Object.keys(fieldsError).some((field) => fieldsError[field]);
 }
 
 class App extends Component {
+  state = {
+    data: "",
+  };
+
   componentDidMount() {
     this.props.form.validateFields();
+    this.executeQuery({ url: "", method: "get" });
   }
+
+  executeQuery = async (config) => {
+    let result = config && config.url &&
+    await Axios.request({
+      ...config,
+      baseURL: process.env.REACT_APP_BASE_URL,
+      headers: { Authorization: process.env.REACT_APP_AUTHORIZATION },
+    });
+
+    result = await Axios.get(process.env.REACT_APP_BASE_URL, {
+      headers: { Authorization: process.env.REACT_APP_AUTHORIZATION }
+    })
+    this.setState({ ...this.state, data: result.data });
+  };
+
   handleSubmit = (e) => {
     e.preventDefault();
-    this.props.form.validateFields((err, values) => {
+    this.props.form.validateFields((err, data) => {
       if (!err) {
-        console.log("Received values of form: ", values);
+      this.executeQuery({ url: "/", method: "post", data });
       }
     });
   };
@@ -31,10 +52,8 @@ class App extends Component {
       isFieldTouched("description") && getFieldError("description");
     const isActiveError =
       isFieldTouched("isActive") && getFieldError("isActive");
-    const typeError =
-      isFieldTouched("type") && getFieldError("type");
-      const addressError =
-      isFieldTouched("address") && getFieldError("address");
+    const typeError = isFieldTouched("type") && getFieldError("type");
+    const addressError = isFieldTouched("address") && getFieldError("address");
 
     const radioStyle = {
       display: "block",
@@ -42,16 +61,11 @@ class App extends Component {
       lineHeight: "30px",
     };
 
-    const typeOptions = [
-      "Electricity",
-      "Furniture",
-      "Computers"
-    ]
-
+    const typeOptions = ["Electricity", "Furniture", "Computers"];
     return (
       <div className="App">
         <h1>Antd 3 Facilities Form </h1>
-        <Form layout="vertical" onSubmit={this.handleSubmit}>
+        <Form layout="vertical" onSubmit={this.handleSubmit} style={{maxWidth: "500px", margin: "0 auto"}}>
           <Form.Item
             label="Name: "
             validateStatus={usernameError ? "error" : ""}
@@ -69,6 +83,7 @@ class App extends Component {
             help={descriptionError || ""}
           >
             {getFieldDecorator("description", {
+              initialValue: this.state.data.description || "" ,
               rules: [
                 {
                   required: true,
@@ -78,7 +93,7 @@ class App extends Component {
             })(
               <Input
                 prefix={
-                  <Icon type="lock" style={{ color: "rgba(0,0,0,.25)" }} />
+                  <Icon type="info" style={{ color: "rgba(0,0,0,.25)" }} />
                 }
                 placeholder="Facility description"
               />
@@ -99,13 +114,14 @@ class App extends Component {
             })(
               <Select
                 mode="multiple"
-                style={{ width: '100%' }}
+                style={{ width: "100%" }}
                 placeholder="Facility type"
-                options={typeOptions}>
-                  {typeOptions.map(province => (
-                    <Select.Option key={province}>{province}</Select.Option>
-                  ))}
-                  </Select>
+                options={typeOptions}
+              >
+                {typeOptions.map((province) => (
+                  <Select.Option key={province}>{province}</Select.Option>
+                ))}
+              </Select>
             )}
           </Form.Item>
           <Form.Item
@@ -138,7 +154,10 @@ class App extends Component {
           >
             {getFieldDecorator("address", {
               rules: [
-                { required: true, message: "Please input new facility address!" },
+                {
+                  required: true,
+                  message: "Please input new facility address!",
+                },
               ],
             })(<Input placeholder="Facility address" />)}
           </Form.Item>
@@ -148,8 +167,8 @@ class App extends Component {
               htmlType="submit"
               disabled={hasErrors(getFieldsError())}
             >
-              Log in
-            </Button> {" "}{" "}{" "}
+              Submit
+            </Button>{" "}
             <Button
               type="ghost"
               htmlType="reset"
@@ -159,6 +178,51 @@ class App extends Component {
             </Button>
           </Form.Item>
         </Form>
+        
+        <br/>
+        <br/>
+        <h2>MY FACILITIES</h2>
+        <List
+          size="large"
+          pagination={{
+            onChange: (page) => {
+              console.log(page);
+            },
+            pageSize: 3,
+          }}
+          dataSource={this.state.data}
+          footer={
+            <div>
+              <b>End of page</b>
+            </div>
+          }
+          renderItem={(item) => (
+            <List.Item
+              key={item.id}
+              actions={[
+                <Button onClick={() => {this.executeQuery({ url: "/" + item.id, method: "get" })}}>Update</Button>,
+                <Button type="danger" onClick={() => {this.executeQuery({ url: "/" + item.id, method: "delete" })}}>
+                  Delete
+                </Button>,
+              ]}
+              extra={
+                <img
+                  width={272}
+                  alt="logo"
+                  src="https://gw.alipayobjects.com/zos/rmsportal/mqaQswcyDLcXyDKnZfES.png"
+                />
+              }
+            >
+              <List.Item.Meta
+                title={<a href={item.id}>{item.id} | {item.name}</a>}
+                description={item.description}
+              />
+              {item.content}
+            </List.Item>
+          )}
+        />
+        <br/>
+        <br/>
       </div>
     );
   }
